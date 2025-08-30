@@ -6,8 +6,9 @@ import base64
 import logging
 import os
 import sys
+import yaml
 
-CONFIG_FILE = "config.yml"
+CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.yml")
 
 DEFAULT_CONFIG_TEXT = """ip: 0.0.0.0
 port: 25565
@@ -29,13 +30,12 @@ if not os.path.exists(CONFIG_FILE):
     print(f"{CONFIG_FILE} not found! Generated default config. Edit it and run again.")
     sys.exit(0)
 
-import yaml
 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
     config = yaml.safe_load(f)
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [\033[1;34m%(levelname)s\033[0m] %(message)s",
+    format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%H:%M:%S"
 )
 
@@ -107,7 +107,8 @@ class ClientThread(threading.Thread):
                     username = self.conn.recv(username_length).decode("utf-8")
                 except:
                     pass
-                logging.info(f"\033[1;32m[{self.addr[0]}:{self.addr[1]}]\033[0m User '{username}' connected, next_state={next_state}")
+                username_display = username if username else self.addr[0]
+                logging.info(f"\033[1;32m[{self.addr[0]}:{self.addr[1]}]\033[0m -> \033[1;34m{username_display}\033[0m connected, next_state={next_state}")
                 if next_state == 1:
                     status = {
                         "version": {"name": self.config.get("version_text"), "protocol": -1},
@@ -121,13 +122,13 @@ class ClientThread(threading.Thread):
                         status["favicon"] = f"data:image/png;base64,{icon_b64}"
                     self.send_packet(0, PacketUtils.write_utf(json.dumps(status)))
                     ping_payload = self.conn.recv(8)
-                    logging.info(f"\033[1;36mPing received from {username}@{self.addr[0]}:{self.addr[1]}, replying pong\033[0m")
+                    logging.info(f"\033[1;36mPing received from {username_display}@{self.addr[0]}:{self.addr[1]}, replying pong\033[0m")
                     self.send_packet(1, ping_payload)
                 elif next_state == 2:
                     kick_msg_text = self.config.get("kick_message")
                     kick_json = json.dumps({"text": kick_msg_text})
                     self.send_packet(0, PacketUtils.write_utf(kick_json))
-                    logging.info(f"\033[1;31mKicked {username}@{self.addr[0]}:{self.addr[1]}: {kick_msg_text.splitlines()[0]}\033[0m")
+                    logging.info(f"\033[1;31mKicked {username_display}@{self.addr[0]}:{self.addr[1]}: {kick_msg_text.splitlines()[0]}\033[0m")
         except Exception as e:
             logging.error(f"[{self.addr}] Error: {e}")
         finally:
